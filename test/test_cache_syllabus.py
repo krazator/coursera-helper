@@ -93,3 +93,37 @@ def test_cache_syllabus_writes_when_enabled(monkeypatch):
     assert error_occurred is False
     assert completed is False
     assert calls == [([], "fake-course-syllabus-parsed.json")]
+
+
+def test_cookies_file_is_loaded_before_module_extraction(monkeypatch):
+    session = object()
+    calls = []
+
+    class RecordingExtractor(FakeExtractor):
+        def get_modules(self, *args, **kwargs):
+            calls.append(("get_modules", args, kwargs))
+            return False, []
+
+    def record_get_cookies_for_class(*args, **kwargs):
+        calls.append(("get_cookies_for_class", args, kwargs))
+
+    monkeypatch.setattr(coursera_dl, "CourseraExtractor", RecordingExtractor)
+    monkeypatch.setattr(coursera_dl, "get_cookies_for_class", record_get_cookies_for_class)
+    monkeypatch.setattr(coursera_dl, "is_debug_run", lambda: False)
+
+    args = make_args(cookies_file="cookies.txt")
+
+    error_occurred, completed = coursera_dl.download_on_demand_class(
+        session=session,
+        args=args,
+        class_name="fake-course",
+    )
+
+    assert error_occurred is False
+    assert completed is False
+    assert calls[0] == (
+        "get_cookies_for_class",
+        (session, "fake-course"),
+        {"cookies_file": "cookies.txt"},
+    )
+    assert calls[1][0] == "get_modules"
