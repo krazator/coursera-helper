@@ -129,6 +129,13 @@ def download_on_demand_class(session, args, class_name):
     error_occurred = False
     extractor = CourseraExtractor(session)
 
+    if args.cookies_file:
+        get_cookies_for_class(
+            session,
+            class_name,
+            cookies_file=args.cookies_file,
+        )
+
     cached_syllabus_filename = '%s-syllabus-parsed.json' % class_name
     if args.cache_syllabus and os.path.isfile(cached_syllabus_filename):
         modules = slurp_json(cached_syllabus_filename)
@@ -236,6 +243,8 @@ def main():
     elif args.browser_cookie:
         cauth = cauth_by_cookie()
         session.cookies.set('CAUTH', cauth)
+    elif args.cookies_file:
+        logging.info('Using cookies from %s', args.cookies_file)
     else:
         cauth = cauth_by_login(args.username, args.password, headless=args.headless)
         session.cookies.set('CAUTH', cauth)
