@@ -20,6 +20,8 @@ import requests
 
 from six import iteritems
 
+REQUEST_TIMEOUT = (10, 60)
+
 #
 # Below are file downloaders, they are wrappers for external downloaders.
 #
@@ -306,8 +308,9 @@ class NativeDownloader(Downloader):
     :param session: Requests session.
     """
 
-    def __init__(self, session):
+    def __init__(self, session, timeout=REQUEST_TIMEOUT):
         self.session = session
+        self.timeout = timeout
 
     def _start_download(self, url, filename, resume=False):
         # resume has no meaning if the file doesn't exists!
@@ -326,59 +329,76 @@ class NativeDownloader(Downloader):
         attempts_count = 0
         error_msg = ''
         while attempts_count < max_attempts:
-            r = self.session.get(url, stream=True, headers=headers)
+            r = None
+            try:
+                r = self.session.get(
+                    url,
+                    stream=True,
+                    headers=headers,
+                    timeout=self.timeout,
+                )
+            except requests.exceptions.RequestException as e:
+                error_msg = str(e)
+                wait_interval = 2 ** (attempts_count + 1)
+                logging.warning('Error downloading %s: %s', url, e)
+                print('Error downloading, will retry in {0} seconds ...'.format(
+                    wait_interval))
+                time.sleep(wait_interval)
+                attempts_count += 1
+                continue
 
-            if r.status_code != 200:
-                # because in resume state we are downloading only a
-                # portion of requested file, server may return
-                # following HTTP codes:
-                # 206: Partial Content
-                # 416: Requested Range Not Satisfiable
-                # which are OK for us.
-                if resume and r.status_code == 206:
-                    pass
-                elif resume and r.status_code == 416:
-                    logging.info('%s already downloaded', filename)
-                    r.close()
-                    return True
-                else:
-                    print('%s %s %s' % (r.status_code, url, filesize))
-                    logging.warning('Probably the file is missing from the AWS '
-                                 'repository...  waiting.')
-
-                    if r.reason:
-                        error_msg = r.reason + ' ' + str(r.status_code)
+            try:
+                if r.status_code != 200:
+                    # because in resume state we are downloading only a
+                    # portion of requested file, server may return
+                    # following HTTP codes:
+                    # 206: Partial Content
+                    # 416: Requested Range Not Satisfiable
+                    # which are OK for us.
+                    if resume and r.status_code == 206:
+                        pass
+                    elif resume and r.status_code == 416:
+                        logging.info('%s already downloaded', filename)
+                        return True
                     else:
-                        error_msg = 'HTTP Error ' + str(r.status_code)
+                        print('%s %s %s' % (r.status_code, url, filesize))
+                        logging.warning('Probably the file is missing from the AWS '
+                                     'repository...  waiting.')
 
-                    wait_interval = 2 ** (attempts_count + 1)
-                    msg = 'Error downloading, will retry in {0} seconds ...'
-                    print(msg.format(wait_interval))
-                    time.sleep(wait_interval)
-                    attempts_count += 1
-                    continue
+                        if r.reason:
+                            error_msg = r.reason + ' ' + str(r.status_code)
+                        else:
+                            error_msg = 'HTTP Error ' + str(r.status_code)
 
-            if resume and r.status_code == 200:
-                # if the server returns HTTP code 200 while we are in
-                # resume mode, it means that the server does not support
-                # partial downloads.
-                resume = False
+                        wait_interval = 2 ** (attempts_count + 1)
+                        msg = 'Error downloading, will retry in {0} seconds ...'
+                        print(msg.format(wait_interval))
+                        time.sleep(wait_interval)
+                        attempts_count += 1
+                        continue
 
-            content_length = r.headers.get('content-length')
-            chunk_sz = 1048576
-            progress = DownloadProgress(content_length)
-            progress.start()
-            f = open(filename, 'ab') if resume else open(filename, 'wb')
-            while True:
-                data = r.raw.read(chunk_sz, decode_content=True)
-                if not data:
-                    progress.stop()
-                    break
-                progress.report(r.raw.tell())
-                f.write(data)
-            f.close()
-            r.close()
-            return True
+                if resume and r.status_code == 200:
+                    # if the server returns HTTP code 200 while we are in
+                    # resume mode, it means that the server does not support
+                    # partial downloads.
+                    resume = False
+
+                content_length = r.headers.get('content-length')
+                chunk_sz = 1048576
+                progress = DownloadProgress(content_length)
+                progress.start()
+                f = open(filename, 'ab') if resume else open(filename, 'wb')
+                while True:
+                    data = r.raw.read(chunk_sz, decode_content=True)
+                    if not data:
+                        progress.stop()
+                        break
+                    progress.report(r.raw.tell())
+                    f.write(data)
+                f.close()
+                return True
+            finally:
+                r.close()
 
         if attempts_count == max_attempts:
             logging.warning('Skipping, can\'t download file ...')
