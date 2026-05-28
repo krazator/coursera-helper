@@ -17,8 +17,25 @@ tmp
 # virtualenv folders
 venv2
 venv3
+venv/
+.venv/
+env/
+
 .idea
 .python-version
 .ipynb_checkpoints
 .ropeproject
 .mypy_cache
+.pytest_cache
+
+# local configuration and credentials
+coursera-dl.conf
+coursera-helper.conf
+cookies.txt
+
+# downloaded course content
+courses/
+downloads/
+
+# playwright
+playwright-report/
