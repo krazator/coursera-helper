@@ -7,38 +7,11 @@
 
 from __future__ import print_function
 
-import os.path
-import subprocess
-import sys
 from io import open
 
 from setuptools import setup
 
 __version__ = "0.12.3"
-
-def generate_readme_rst():
-    """
-    Generate README.rst from README.md via pandoc.
-
-    In case of errors, we show a message having the error that we got and
-    exit the program.
-    """
-
-    pandoc_cmd = [
-        'pandoc',
-        '--from=markdown',
-        '--to=rst',
-        '--output=README.rst',
-        'README.md'
-    ]
-
-    if os.path.exists('README.rst'):
-        return
-    try:
-        subprocess.call(pandoc_cmd)
-    except (IOError, OSError) as e:
-        print('Could not run "pandoc". Error: %s' % e, file=sys.stderr)
-        print('Generating only a stub instead of the real documentation.')
 
 
 def read_file(filename, alt=None):
@@ -51,8 +24,6 @@ def read_file(filename, alt=None):
     except IOError:
         return [] if alt is None else alt
 
-
-generate_readme_rst()
 
 long_description = read_file(
     'README.md',
