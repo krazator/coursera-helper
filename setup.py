@@ -14,8 +14,7 @@ from io import open
 
 from setuptools import setup
 
-from coursera_helper import __version__
-
+__version__ = "0.12.3"
 
 def generate_readme_rst():
     """
