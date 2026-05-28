@@ -115,7 +115,13 @@ def list_courses(session, args):
         logging.info(course)
 
 
-def download_on_demand_class(session, args, class_name):
+def get_default_download_root(args, requested_name):
+    if args.path:
+        return args.path
+    return requested_name
+
+
+def download_on_demand_class(session, args, class_name, requested_name=None):
     """
     Download all requested resources from the on-demand class given
     in class_name.
@@ -171,7 +177,7 @@ def download_on_demand_class(session, args, class_name):
         downloader_wrapper,
         commandline_args=args,
         class_name=class_name,
-        path=args.path,
+        path=get_default_download_root(args, requested_name or class_name),
         ignored_formats=ignored_formats,
         disable_url_skipping=args.disable_url_skipping
     )
@@ -210,7 +216,7 @@ def print_failed_urls(failed_urls):
     logging.info('-' * 80)
 
 
-def download_class(session, args, class_name):
+def download_class(session, args, class_name, requested_name=None):
     """
     Try to download on-demand class.
 
@@ -220,7 +226,7 @@ def download_class(session, args, class_name):
     @rtype: (bool, bool)
     """
     logging.debug('Downloading new style (on demand) class %s', class_name)
-    return download_on_demand_class(session, args, class_name)
+    return download_on_demand_class(session, args, class_name, requested_name)
 
 
 def main():
@@ -232,6 +238,7 @@ def main():
     logging.info('coursera-helper version %s', __version__)
     completed_classes = []
     classes_with_errors = []
+    requested_names = list(args.class_names)
 
     mkdir_p(PATH_CACHE, 0o700)
     if args.clear_cache:
@@ -258,12 +265,15 @@ def main():
     if args.specialization:
         args.class_names = expand_specializations(session, args.class_names)
 
+    default_root = requested_names[0] if args.specialization and len(requested_names) == 1 else None
+
     for class_index, class_name in enumerate(args.class_names):
+        requested_name = default_root or class_name
         try:
             logging.info('Downloading class: %s (%d / %d)',
                          class_name, class_index + 1, len(args.class_names))
             error_occurred, completed = download_class(
-                session, args, class_name)
+                session, args, class_name, requested_name=requested_name)
             if completed:
                 completed_classes.append(class_name)
             if error_occurred:
