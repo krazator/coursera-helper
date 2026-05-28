@@ -21,6 +21,7 @@ import requests
 from six import iteritems
 
 REQUEST_TIMEOUT = (10, 60)
+MAX_DOWNLOAD_ATTEMPTS = 2
 
 #
 # Below are file downloaders, they are wrappers for external downloaders.
@@ -308,9 +309,10 @@ class NativeDownloader(Downloader):
     :param session: Requests session.
     """
 
-    def __init__(self, session, timeout=REQUEST_TIMEOUT):
+    def __init__(self, session, timeout=REQUEST_TIMEOUT, max_attempts=MAX_DOWNLOAD_ATTEMPTS):
         self.session = session
         self.timeout = timeout
+        self.max_attempts = max_attempts
 
     def _start_download(self, url, filename, resume=False):
         # resume has no meaning if the file doesn't exists!
@@ -325,10 +327,9 @@ class NativeDownloader(Downloader):
         else:
             logging.info('Downloading %s -> %s', url, filename)
 
-        max_attempts = 3
         attempts_count = 0
         error_msg = ''
-        while attempts_count < max_attempts:
+        while attempts_count < self.max_attempts:
             r = None
             try:
                 r = self.session.get(
@@ -400,7 +401,7 @@ class NativeDownloader(Downloader):
             finally:
                 r.close()
 
-        if attempts_count == max_attempts:
+        if attempts_count == self.max_attempts:
             logging.warning('Skipping, can\'t download file ...')
             logging.error(error_msg)
             return False
