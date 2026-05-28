@@ -8,11 +8,53 @@ import subprocess
 
 import requests
 
+try:
+    from urllib.parse import urlparse
+except ImportError:
+    from urlparse import urlparse
+
 from .formatting import format_section, get_lecture_filename
 from .playlist import create_m3u_playlist
 from .utils import is_course_complete, mkdir_p, normalize_path
 from .filtering import find_resources_to_get, skip_format_url
 from .define import IN_MEMORY_MARKER
+
+COURSERA_DOMAINS = (
+    'coursera.org',
+    'coursera-apps.org',
+    'cloudfront.net',
+)
+
+
+def is_external_resource_url(url):
+    if not url or url.startswith(IN_MEMORY_MARKER):
+        return False
+
+    parsed = urlparse(url)
+    hostname = parsed.hostname or ''
+    hostname = hostname.lower()
+
+    if not hostname:
+        return False
+
+    return not any(
+        hostname == domain or hostname.endswith('.' + domain)
+        for domain in COURSERA_DOMAINS
+    )
+
+
+def link_filename_for_resource(filename):
+    base, _ext = os.path.splitext(filename)
+    return base + '.url'
+
+
+def save_external_resource_link(url, filename):
+    link_filename = link_filename_for_resource(filename)
+    logging.info('Saving external resource link: %s', link_filename)
+    with codecs.open(link_filename, 'w', 'utf-8') as file_object:
+        file_object.write(url)
+        file_object.write('\n')
+    return link_filename
 
 
 def _iter_modules(modules, class_name, path, ignored_formats, args):
@@ -224,6 +266,9 @@ class CourseraDownloader(CourseDownloader):
             logging.info('Downloading: %s failed, url does not exists', lecture_filename)
             return last_update
 
+        if is_external_resource_url(url):
+            lecture_filename = link_filename_for_resource(lecture_filename)
+
         # Decide whether we need to download it
         if overwrite or not os.path.exists(lecture_filename) or resume:
             if not skip_download:
@@ -232,6 +277,8 @@ class CourseraDownloader(CourseDownloader):
                     logging.info('Saving page contents to: %s', lecture_filename)
                     with codecs.open(lecture_filename, 'w', 'utf-8') as file_object:
                         file_object.write(page_content)
+                elif is_external_resource_url(url):
+                    save_external_resource_link(url, lecture_filename)
                 else:
                     if self.skipped_urls is not None and skip_format_url(fmt, url):
                         self.skipped_urls.append(url)
