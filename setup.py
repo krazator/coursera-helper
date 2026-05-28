@@ -10,7 +10,6 @@ from __future__ import print_function
 import os.path
 import subprocess
 import sys
-# For compatibility with Python2.7
 from io import open
 
 from setuptools import setup
@@ -82,11 +81,11 @@ trove_classifiers = [
 setup(
     name='coursera-helper',
     version=__version__,
-    maintainer='Ye Zheng',
-    maintainer_email='csyezheng@gmail..com',
+    maintainer='Spiros Keverkloglou',
+    maintainer_email='spiros.kraz@hotmail.com',
 
     license='LGPL',
-    url='https://github.com/csyezheng/coursera-helper',
+    url='https://github.com/krazator/coursera-helper',
 
     install_requires=requirements,
     extras_require=dict(
