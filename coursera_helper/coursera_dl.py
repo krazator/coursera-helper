@@ -38,7 +38,7 @@ Examples:
   coursera-helper -u <user> -p <passwd> -l listing.html -o saas --skip-download
 
 For further documentation and examples, visit the project's home at:
-  https://github.com/csyezheng/coursera
+  https://github.com/krazator/coursera-helper
 """
 
 
@@ -80,7 +80,7 @@ from coursera_helper import __version__
 
 
 # URL containing information about outdated modules
-_SEE_URL = " See https://github.com/csyezheng/coursera/issues/139"
+_SEE_URL = " See https://github.com/krazator/coursera-helper/issues"
 
 assert V(requests.__version__) >= V('2.4'), "Upgrade requests!" + _SEE_URL
 assert V(six.__version__) >= V('1.5'), "Upgrade six!" + _SEE_URL
@@ -144,7 +144,7 @@ def download_on_demand_class(session, args, class_name):
             args.download_notebooks
         )
 
-    if is_debug_run or args.cache_syllabus():
+    if is_debug_run() or args.cache_syllabus:
         spit_json(modules, cached_syllabus_filename)
 
     if args.only_syllabus:
@@ -222,7 +222,7 @@ def main():
     """
 
     args = parse_args()
-    logging.info('coursera_dl version %s', __version__)
+    logging.info('coursera-helper version %s', __version__)
     completed_classes = []
     classes_with_errors = []
 
