@@ -57,6 +57,7 @@ from packaging.version import Version
 import bs4
 import six
 import requests
+from six.moves.urllib_parse import urlparse
 
 from .cookies import (
     AuthenticationFailed, ClassNotFound,
@@ -115,10 +116,28 @@ def list_courses(session, args):
         logging.info(course)
 
 
-def get_default_download_root(args, requested_name):
+def get_requested_download_root_name(requested_name):
+    if not requested_name:
+        return ''
+
+    parsed = urlparse(requested_name.strip())
+    if parsed.scheme and parsed.netloc:
+        path_parts = [part for part in parsed.path.split('/') if part]
+        if (parsed.netloc.endswith('coursera.org') and len(path_parts) >= 2
+                and path_parts[0] in ('learn', 'specializations')):
+            requested_name = path_parts[1]
+        elif path_parts:
+            requested_name = path_parts[-1]
+        else:
+            requested_name = parsed.netloc
+
+    return clean_filename(requested_name, minimal_change=True)
+
+
+def get_default_download_root(args, requested_name=None):
     if args.path:
         return args.path
-    return requested_name
+    return get_requested_download_root_name(requested_name)
 
 
 def download_on_demand_class(session, args, class_name, requested_name=None):
@@ -268,12 +287,11 @@ def main():
     default_root = requested_names[0] if args.specialization and len(requested_names) == 1 else None
 
     for class_index, class_name in enumerate(args.class_names):
-        requested_name = default_root or class_name
         try:
             logging.info('Downloading class: %s (%d / %d)',
                          class_name, class_index + 1, len(args.class_names))
             error_occurred, completed = download_class(
-                session, args, class_name, requested_name=requested_name)
+                session, args, class_name, requested_name=default_root)
             if completed:
                 completed_classes.append(class_name)
             if error_occurred:

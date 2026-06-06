@@ -127,3 +127,27 @@ def test_cookies_file_is_loaded_before_module_extraction(monkeypatch):
         {"cookies_file": "cookies.txt"},
     )
     assert calls[1][0] == "get_modules"
+
+
+def test_default_download_root_stays_empty_for_regular_course():
+    args = make_args()
+
+    assert coursera_dl.get_default_download_root(args) == ""
+
+
+def test_default_download_root_prefers_explicit_path():
+    args = make_args(path="downloads")
+
+    assert coursera_dl.get_default_download_root(
+        args,
+        "https://www.coursera.org/specializations/machine-learning-introduction",
+    ) == "downloads"
+
+
+def test_default_download_root_uses_slug_from_coursera_url():
+    args = make_args()
+
+    assert coursera_dl.get_default_download_root(
+        args,
+        "https://www.coursera.org/specializations/machine-learning-introduction",
+    ) == "machine-learning-introduction"
